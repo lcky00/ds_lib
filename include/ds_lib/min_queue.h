@@ -3,18 +3,28 @@
  * @brief Generic min priority queue (binary heap) storing void pointers.
  *
  * The queue stores pointers to user data and orders them with a
- * user-supplied comparator. It never copies, modifies or frees the items:
- * the caller owns them.
- * 
- * @author lcky00 
+ * user-supplied comparator. It never copies or modifies the items. The
+ * caller owns them, unless a free function is passed to
+ * min_queue_destroy().
+ *
+ * @author lcky00
  *
  * @note Not thread-safe. Synchronize externally if shared between threads.
+ * @note The queue is NOT stable: items that compare equal are extracted in
+ *       an unspecified order (not necessarily insertion order). If you need
+ *       FIFO order among equals, add a sequence number to your items and
+ *       use it as a tie-breaker in the comparator.
  */
 
-#ifndef MIN_QUEUE_H
-#define MIN_QUEUE_H
+#ifndef DS_LIB_MIN_QUEUE_H
+#define DS_LIB_MIN_QUEUE_H
 
 #include <stddef.h>
+#include <ds_lib/common.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /** @brief Status codes returned by functions that can fail. */
 typedef enum {
@@ -24,29 +34,22 @@ typedef enum {
     MINQ_ERR_OVERFLOW = -3         /**< Maximum capacity reached. */
 } min_queue_status_t;
 
-/**
- * @brief Comparison function, same contract as the one used by qsort().
- *
- * @return A negative value if @p a < @p b, zero if equal, a positive value
- *         if @p a > @p b. The item for which the comparator says "smaller"
- *         is extracted first.
- *
- * @warning The comparator must define a consistent ordering, and the keys
- *          of items already in the queue must not change while they are
- *          inside it, otherwise the heap property is broken.
- */
-typedef int (*compare_fn) (const void*, const void*);
-
+/** @brief Opaque min queue type. */
 typedef struct min_queue_t min_queue_t;
 
 /**
  * @brief Creates an empty queue.
  *
- * @param compare Comparison function (must not be NULL).
+ * @param compare Comparison function (must not be NULL). The item for which
+ *                the comparator says "smaller" is extracted first.
  * @return A new queue, or NULL if @p compare is NULL or memory allocation
  *         fails. Release it with min_queue_destroy().
+ *
+ * @warning The comparator must define a consistent ordering, and the keys
+ *          of items already in the queue must not change while they are
+ *          inside it, otherwise the heap property is broken.
  */
-min_queue_t * min_queue_create(compare_fn compare);
+min_queue_t * min_queue_create(ds_compare_fn compare);
 
 /**
  * @brief Inserts an item.
@@ -104,12 +107,20 @@ int min_queue_is_empty(const min_queue_t *q);
 /**
  * @brief Destroys the queue and releases its memory.
  *
- * The items are NOT freed: the queue does not own them. To free them,
- * extract them (or keep your own references) before calling this function.
+ * By default the items are NOT freed: the queue does not own them. If
+ * @p free_item is not NULL it is called once on every item still in the
+ * queue (in unspecified order) before the queue itself is released.
+ * Items already extracted are never touched.
  *
- * @param q Address of the queue pointer. On return, *q is set to NULL.
- *          Does nothing if @p q or *q is NULL.
+ * @param q         Address of the queue pointer. On return, *q is set to
+ *                  NULL. Does nothing if @p q or *q is NULL.
+ * @param free_item Function used to release the remaining items (e.g.
+ *                  free), or NULL to leave them alone.
  */
-void min_queue_destroy(min_queue_t **q);
+void min_queue_destroy(min_queue_t **q, ds_free_fn free_item);
 
-#endif // MIN_QUEUE_H
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* DS_LIB_MIN_QUEUE_H */

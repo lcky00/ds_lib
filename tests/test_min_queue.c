@@ -2,12 +2,11 @@
  * @file test_min_queue.c
  * @brief Tests for min_queue.
  *
- * Build and run (with sanitizers):
- *   cc -std=c99 -g -Wall -Wextra -Wpedantic -Wconversion \
- *      -fsanitize=address,undefined test_min_queue.c min_queue.c \
- *      -o test_min_queue && ./test_min_queue
+ * Build and run from the project root:
+ *   make test    # normal build
+ *   make asan    # with AddressSanitizer and UBSan
  */
-#include "../include/ds_lib/min_queue.h"
+#include <ds_lib/min_queue.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -86,7 +85,7 @@ static void test_create_destroy(void) {
     CHECK(min_queue_get_cap(q) > 0);
     CHECK(min_queue_is_empty(q));
 
-    min_queue_destroy(&q);
+    min_queue_destroy(&q, NULL);
     CHECK(q == NULL);
 }
 
@@ -96,14 +95,14 @@ static void test_create_null_compare(void) {
 
 static void test_destroy_null_safe(void) {
     min_queue_t *q = NULL;
-    min_queue_destroy(&q);   /* *q == NULL */
-    min_queue_destroy(NULL); /* q == NULL  */
+    min_queue_destroy(&q, NULL);   /* *q == NULL */
+    min_queue_destroy(NULL, NULL); /* q == NULL  */
     CHECK(q == NULL);
 
     /* double destroy: the second call sees NULL and does nothing */
     q = min_queue_create(cmp_int_ptr);
-    min_queue_destroy(&q);
-    min_queue_destroy(&q);
+    min_queue_destroy(&q, NULL);
+    min_queue_destroy(&q, NULL);
     CHECK(q == NULL);
 }
 
@@ -122,7 +121,7 @@ static void test_null_arguments(void) {
     CHECK(min_queue_get_cap(NULL) == 0);
     CHECK(min_queue_is_empty(NULL));
 
-    min_queue_destroy(&q);
+    min_queue_destroy(&q, NULL);
 }
 
 static void test_empty_queue(void) {
@@ -133,7 +132,7 @@ static void test_empty_queue(void) {
     CHECK(min_queue_get_min(q) == NULL);
     CHECK(min_queue_is_empty(q));
 
-    min_queue_destroy(&q);
+    min_queue_destroy(&q, NULL);
 }
 
 static void test_single_element(void) {
@@ -151,7 +150,7 @@ static void test_single_element(void) {
     CHECK(min_queue_is_empty(q));
     CHECK(min_queue_extract_min(q) == NULL);
 
-    min_queue_destroy(&q);
+    min_queue_destroy(&q, NULL);
 }
 
 static void test_sorted_order_small(void) {
@@ -165,7 +164,7 @@ static void test_sorted_order_small(void) {
     CHECK(*(int *)min_queue_get_min(q) == 1);
     check_drains_sorted(q, v, n);
 
-    min_queue_destroy(&q);
+    min_queue_destroy(&q, NULL);
 }
 
 static void test_already_sorted_and_reversed(void) {
@@ -185,7 +184,7 @@ static void test_already_sorted_and_reversed(void) {
     CHECK(insert_all(q, desc, N));
     check_drains_sorted(q, desc, N);
 
-    min_queue_destroy(&q);
+    min_queue_destroy(&q, NULL);
 }
 
 static void test_duplicates(void) {
@@ -197,7 +196,7 @@ static void test_duplicates(void) {
     CHECK(insert_all(q, v, n));
     check_drains_sorted(q, v, n);
 
-    min_queue_destroy(&q);
+    min_queue_destroy(&q, NULL);
 }
 
 static void test_growth_beyond_initial_capacity(void) {
@@ -221,7 +220,7 @@ static void test_growth_beyond_initial_capacity(void) {
 
     check_drains_sorted(q, v, N);
 
-    min_queue_destroy(&q);
+    min_queue_destroy(&q, NULL);
     free(v);
 }
 
@@ -241,7 +240,7 @@ static void test_random_vs_qsort(void) {
         CHECK(insert_all(q, v, n));
         check_drains_sorted(q, v, n);
 
-        min_queue_destroy(&q);
+        min_queue_destroy(&q, NULL);
         free(v);
     }
 }
@@ -288,7 +287,7 @@ static void test_interleaved_operations(void) {
         if (checks_failed > 20) break; /* avoid flooding on a broken heap */
     }
 
-    min_queue_destroy(&q);
+    min_queue_destroy(&q, NULL);
     free(pool);
     free(ref);
 }
@@ -311,7 +310,7 @@ static void test_strings(void) {
     }
     CHECK(min_queue_is_empty(q));
 
-    min_queue_destroy(&q);
+    min_queue_destroy(&q, NULL);
 }
 
 static void test_reuse_after_drain(void) {
@@ -326,7 +325,7 @@ static void test_reuse_after_drain(void) {
     CHECK(insert_all(q, b, 3));
     check_drains_sorted(q, b, 3);
 
-    min_queue_destroy(&q);
+    min_queue_destroy(&q, NULL);
 }
 
 static void test_independent_queues(void) {
@@ -346,8 +345,52 @@ static void test_independent_queues(void) {
     CHECK(min_queue_get_len(q2) == 3); /* q2 untouched */
     check_drains_sorted(q2, b, 3);
 
-    min_queue_destroy(&q1);
-    min_queue_destroy(&q2);
+    min_queue_destroy(&q1, NULL);
+    min_queue_destroy(&q2, NULL);
+}
+
+static int free_calls = 0;
+
+static void counting_free(void *p) {
+    free_calls++;
+    free(p);
+}
+
+static void test_destroy_with_free_fn(void) {
+    enum { N = 100, EXTRACTED = 30 };
+    min_queue_t *q = min_queue_create(cmp_int_ptr);
+    CHECK(q != NULL);
+
+    for (int i = 0; i < N; i++) {
+        int *p = malloc(sizeof *p);
+        CHECK(p != NULL);
+        if (!p) break;
+        *p = (N - i) * 7 % 101;
+        CHECK(min_queue_insert(q, p) == MINQ_SUCCESS);
+    }
+
+    /* extracted items belong to the caller: free them ourselves */
+    for (int i = 0; i < EXTRACTED; i++)
+        free(min_queue_extract_min(q));
+
+    free_calls = 0;
+    size_t left = min_queue_get_len(q);
+    min_queue_destroy(&q, counting_free);
+    CHECK(q == NULL);
+    CHECK(free_calls == (int)left);
+    CHECK(left == N - EXTRACTED);
+
+    /* empty queue: free_fn must not be called */
+    q = min_queue_create(cmp_int_ptr);
+    CHECK(q != NULL);
+    free_calls = 0;
+    min_queue_destroy(&q, counting_free);
+    CHECK(free_calls == 0);
+
+    /* NULL queue with a free_fn: no crash */
+    min_queue_destroy(&q, counting_free);
+    min_queue_destroy(NULL, counting_free);
+    CHECK(free_calls == 0);
 }
 
 int main(void) {
@@ -366,6 +409,7 @@ int main(void) {
     RUN(test_strings);
     RUN(test_reuse_after_drain);
     RUN(test_independent_queues);
+    RUN(test_destroy_with_free_fn);
 
     printf("\n%d tests, %d failed checks\n", tests_run, checks_failed);
     return checks_failed ? EXIT_FAILURE : EXIT_SUCCESS;

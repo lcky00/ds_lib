@@ -1,57 +1,49 @@
-CC      ?= cc
-AR      ?= ar
-CFLAGS  ?= -std=c11 -Wall -Wextra -Wpedantic -O2 -g
-CPPFLAGS += -Iinclude
-PREFIX  ?= /usr/local
+CC 		:= gcc
+AR		:= ar
+CFLAGS 	:= -std=c11 -Wall -Wextra -Wpedantic -Wconversion -O2 -g -Iinclude
 
-# make SAN=1 -> compila con AddressSanitizer e UBSan
-ifdef SAN
-CFLAGS += -fsanitize=address,undefined -fno-omit-frame-pointer
-endif
+BUILD_DIR 	:= build
+LIB_DIR 	:= src
+TEST_DIR	:= tests
 
-BUILD := build
-LIB   := $(BUILD)/libds_lib.a
+LIB_FILE	:= $(wildcard src/*.c) 
+TEST_FILE	:= $(wildcard tests/*.c) 
 
-SRC   := $(wildcard src/*.c)
-OBJ   := $(SRC:src/%.c=$(BUILD)/%.o)
-DEP   := $(OBJ:.o=.d)
+LIB_OBJ		:= $(LIB_FILE:src/%.c=build/%.o)
+TEST_OBJ	:= $(TEST_FILE:tests/%.c=build/tests/%)
 
-TEST_SRC := $(wildcard tests/test_*.c)
-TEST_BIN := $(TEST_SRC:tests/%.c=$(BUILD)/%)
+DEP := $(LIB_OBJ:.o=.d)
 
-.PHONY: all test asan install clean
+.PHONY: all test clean
 
-all: $(LIB)
+all: $(LIB_OBJ)
+	@$(AR) rcs $(BUILD_DIR)/ds_lib.a $^
 
-$(LIB): $(OBJ)
-	$(AR) rcs $@ $^
-
-$(BUILD)/%.o: src/%.c | $(BUILD)
-	$(CC) $(CPPFLAGS) $(CFLAGS) -MMD -MP -c $< -o $@
-
-$(BUILD)/test_%: tests/test_%.c $(LIB)
-	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIB) -o $@
-
-$(BUILD):
+$(BUILD_DIR):
 	mkdir -p $@
 
-# Compila ed esegue tutti i tests/test_*.c
-test: $(TEST_BIN)
-	@for t in $(TEST_BIN); do \
-		echo "== $$t"; \
-		./$$t || exit 1; \
-	done
+$(BUILD_DIR)/tests: $(BUILD_DIR)
+	mkdir -p $@
 
-# Ricompila da zero con i sanitizer e lancia i test
-asan: clean
-	$(MAKE) test SAN=1
+# Compilazione di ogni .c in .o
+$(BUILD_DIR)/%.o: $(LIB_DIR)/%.c | $(BUILD_DIR)
+	$(CC) $(CFLAGS) -c $< -o $@ -MMD -MP
 
-install: $(LIB)
-	install -d $(PREFIX)/include $(PREFIX)/lib
-	cp -r include/ds_lib $(PREFIX)/include/
-	install -m 644 $(LIB) $(PREFIX)/lib/
+# Compila ogni test 
+$(BUILD_DIR)/tests/%: $(TEST_DIR)/%.c $(LIB_OBJ) | $(BUILD_DIR)/tests
+	$(CC) $(CFLAGS) $^ -o $@
+
+
 
 clean:
-	rm -rf $(BUILD)
+	@rm -rf $(BUILD_DIR)
+	@echo "Cleaned!"
+
+
+# Azione per eseguire i test
+test: $(TEST_OBJ)
+	@for t in $(TEST_OBJ); do echo "== $$t =="; ./$$t || exit 1; done;
 
 -include $(DEP)
+
+

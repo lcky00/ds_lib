@@ -1,4 +1,4 @@
-#include "../include/ds_lib/min_queue.h"
+#include <ds_lib/min_queue.h>
 #include <stdlib.h>
 #include <stdint.h>
 
@@ -8,7 +8,7 @@ struct min_queue_t{
     void **queue;
     size_t capacity;
     size_t len;
-    compare_fn compare;
+    ds_compare_fn compare;
 };
 
 static size_t min_queue_get_parent(size_t i) {
@@ -71,7 +71,7 @@ static void min_queue_heapify_down(min_queue_t *q) {
     }
 }
 
-min_queue_t* min_queue_create(compare_fn compare) {
+min_queue_t* min_queue_create(ds_compare_fn compare) {
     if (!compare) return NULL;
 
     min_queue_t *q;
@@ -114,7 +114,7 @@ min_queue_status_t min_queue_insert(min_queue_t *q, void *entry) {
 }
 
 void * min_queue_extract_min(min_queue_t *q) {
-    if (!q || !q->queue || q->len == 0) return NULL;
+    if (!q || q->len == 0) return NULL;
     
     void *out = q->queue[0];
     q->len--;
@@ -126,7 +126,7 @@ void * min_queue_extract_min(min_queue_t *q) {
 }
 
 void * min_queue_get_min(const min_queue_t *q) {
-    if (!q || !q->queue || q->len == 0) return NULL;
+    if (!q || q->len == 0) return NULL;
 
     return q->queue[0];
 }
@@ -147,8 +147,13 @@ int min_queue_is_empty(const min_queue_t *q) {
     return !q || q->len == 0;
 }
 
-void min_queue_destroy(min_queue_t **q) {
+void min_queue_destroy(min_queue_t **q, ds_free_fn free_item) {
     if (!q || !*q) return;
+
+    if (free_item) {
+        for (size_t i = 0; i < (*q)->len; i++)
+            free_item((*q)->queue[i]);
+    }
 
     free((*q)->queue);
     free(*q);
