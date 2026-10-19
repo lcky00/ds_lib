@@ -13,6 +13,7 @@ LIB_OBJ		:= $(LIB_FILE:src/%.c=build/%.o)
 TEST_OBJ	:= $(TEST_FILE:tests/%.c=build/tests/%)
 
 DEP := $(LIB_OBJ:.o=.d)
+PREFIX  := /usr/local
 
 .PHONY: all test clean
 
@@ -34,15 +35,18 @@ $(BUILD_DIR)/tests/%: $(TEST_DIR)/%.c $(LIB_OBJ) | $(BUILD_DIR)/tests
 	$(CC) $(CFLAGS) $^ -o $@
 
 
-
 clean:
 	@rm -rf $(BUILD_DIR)
 	@echo "Cleaned!"
 
-
 # Azione per eseguire i test
 test: $(TEST_OBJ)
 	@for t in $(TEST_OBJ); do echo "== $$t =="; ./$$t || exit 1; done;
+
+install: $(LIB_OBJ)
+	install -d $(PREFIX)/include $(PREFIX)/lib
+	cp -r include/ds_lib $(PREFIX)/include/
+	install -m 644 $(BUILD_DIR)/ds_lib.a $(PREFIX)/lib/
 
 -include $(DEP)
 

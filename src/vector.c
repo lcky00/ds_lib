@@ -207,7 +207,7 @@ int vector_find(const vector_t * v, const void * entry, ds_compare_fn compare) {
 
     for (size_t i = 0; i < v->len; i++) {
         if (compare(v->vector[i], entry) == 0) 
-            return i;
+            return (int)i;
     }
     return -1;
 }
