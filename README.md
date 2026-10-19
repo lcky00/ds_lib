@@ -18,7 +18,6 @@ function pointers (`ds_compare_fn`, `ds_free_fn`, see `include/ds_lib/common.h`)
 ```sh
 make          # build/libds_lib.a
 make test     # build and run all tests
-make asan     # clean rebuild with AddressSanitizer + UBSan, then run tests
 make install  # PREFIX=/usr/local by default
 ```
 
