@@ -12,25 +12,7 @@ struct vector_t {
     size_t dim;
 };
 
-vector_t * vector_create() {
-    vector_t *v;
-
-    v = malloc(sizeof(vector_t));
-    if (!v) return NULL;
-
-    v->vector = malloc(sizeof(void *) * VECTOR_INIT_CAP);
-    if (!v->vector) {
-        free(v);
-        return NULL;
-    }
-
-    v->dim = VECTOR_INIT_CAP;
-    v->len = 0;
-
-    return v;
-}
-
-vector_t * vector_create(size_t dim) {
+vector_t * vector_create_with_capacity(size_t dim) {
     vector_t *v;
 
     if (dim > SIZE_MAX / sizeof(void *))
@@ -49,6 +31,10 @@ vector_t * vector_create(size_t dim) {
     v->len = 0;
 
     return v;
+}
+
+vector_t * vector_create() {
+    return vector_create_with_capacity(VECTOR_INIT_CAP);
 }
 
 static vector_status_t vector_expand(vector_t * v) {

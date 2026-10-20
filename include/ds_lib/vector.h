@@ -77,7 +77,7 @@ vector_t * vector_create();
  *
  * @return A new vector, or @c NULL if memory allocation fails.
  */
-vector_t * vector_create(size_t dim);
+vector_t * vector_create_with_capacity(size_t dim);
 
 /**
  * @brief Adds an item at the end of the vector.
