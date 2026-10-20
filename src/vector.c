@@ -30,6 +30,27 @@ vector_t * vector_create() {
     return v;
 }
 
+vector_t * vector_create(size_t dim) {
+    vector_t *v;
+
+    if (dim > SIZE_MAX / sizeof(void *))
+        return NULL;
+
+    v = malloc(sizeof(vector_t));
+    if (!v) return NULL;
+
+    v->vector = malloc(sizeof(void *) * dim);
+    if (!v->vector) {
+        free(v);
+        return NULL;
+    }
+
+    v->dim = dim;
+    v->len = 0;
+
+    return v;
+}
+
 static vector_status_t vector_expand(vector_t * v) {
     // Check overflow
     if (v->dim > SIZE_MAX / 2 / sizeof(void *)) return VECT_ERR_OVERFLOW;

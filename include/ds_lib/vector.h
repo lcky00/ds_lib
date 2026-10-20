@@ -70,6 +70,16 @@ typedef struct vector_t vector_t;
 vector_t * vector_create();
 
 /**
+ * @brief Creates an empty vector.
+ *
+ * The initial capacity is @p dim. The vector must be released with
+ * vector_destroy().
+ *
+ * @return A new vector, or @c NULL if memory allocation fails.
+ */
+vector_t * vector_create(size_t dim);
+
+/**
  * @brief Adds an item at the end of the vector.
  *
  * Amortised O(1). Grows the vector if it is full.
